@@ -94,21 +94,25 @@ def close_connection(conn, engine):
 
 if __name__ == '__main__':
     # create connection
-    engine, conn = azure_connect(time=10_000)
+    engine, conn = azure_connect(time=100_000)
     
+    # Enable fast_executemany
     @event.listens_for(engine, "before_cursor_execute")
     def receive_before_cursor_execute(conn, cursor, statement, params, context, executemany):
         if executemany:
             cursor.fast_executemany = True    
     
     # Load data from pickle
-    df_load = pd.read_pickle('DAGI.pkl')
+    df_load = pd.read_pickle('BBR.pkl')
     df_new = df_load.fillna(value = np.nan)
+    print(len(df_new))
+    print('data loaded')
 
     # Use the engine with to_sql
     # df_new.to_sql('DAGI', engine, if_exists='replace', index=False, chunksize=100, method='multi')
-    df_new.to_sql('DAGI', engine, if_exists='replace', index=False)
-
+    df_new.to_sql('BBR', engine, if_exists='replace', index=False)
+    print('data uploaded')
+    
     # close connection
     close_connection(conn, engine)
     
