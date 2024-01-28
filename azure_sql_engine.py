@@ -1,9 +1,10 @@
 import pyodbc
 import pandas as pd
-from sqlalchemy import create_engine
+import numpy as np
+from sqlalchemy import create_engine, event
 import urllib
 
-def azure_connect(driver = 'ODBC Driver 18 for SQL Server',your_user_name = None, your_password_here = None, time = 6000):
+def azure_connect(driver = 'ODBC Driver 18 for SQL Server',your_user_name = 's234859@dtu.dk', your_password_here = None, time = 6000):
     ''' 
     Establishes a connection to an Azure SQL database and executes a SELECT query.
 
@@ -93,31 +94,21 @@ def close_connection(conn, engine):
 
 if __name__ == '__main__':
     # create connection
-    engine, conn = azure_connect(time=6000)
+    engine, conn = azure_connect(time=10_000)
     
-    # load data
-    df = pd.read_sql('SELECT * FROM test', engine)
-    print(df)
+    @event.listens_for(engine, "before_cursor_execute")
+    def receive_before_cursor_execute(conn, cursor, statement, params, context, executemany):
+        if executemany:
+            cursor.fast_executemany = True    
     
-    # Create new row for insertion
-    new_row = [
-        (125, 'TK', 'Flemming', 'kollegiebakken','Lyngby')      
-    ]
-    df_new = pd.DataFrame(new_row, columns=df.columns)
+    # Load data from pickle
+    df_load = pd.read_pickle('DAGI.pkl')
+    df_new = df_load.fillna(value = np.nan)
 
     # Use the engine with to_sql
-    df_new.to_sql('test', engine, if_exists='append', index=False)
+    # df_new.to_sql('DAGI', engine, if_exists='replace', index=False, chunksize=100, method='multi')
+    df_new.to_sql('DAGI', engine, if_exists='replace', index=False)
 
-    # execute query
-    execute_query(conn, 'select * from test;')
-    
-    # commit query
-    commit_query(conn, "DELETE FROM test WHERE Lastname = 'john'")
-    
-    # check if data is inserted
-    df = pd.read_sql('SELECT * FROM test', engine)
-    print(df)
-    
     # close connection
     close_connection(conn, engine)
     
